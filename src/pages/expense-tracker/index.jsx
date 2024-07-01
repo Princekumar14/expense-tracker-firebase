@@ -6,21 +6,28 @@ import { useNavigate } from "react-router-dom";
 
 import "./style.css";
 import { signOut } from "firebase/auth";
-import { auth } from "../../config/firebase-config";
+import { auth } from "../../firebaseDB/config/firebase-config";
 
 export const ExpenseTracker = () => {
 
     const { addTransaction } = useAddTransaction();
 
     const { transactions, transactionTotals } = useGetTransactions();
-    // console.log(transactions[0]);
+    // console.log(transactions[0].createdAt.toDate());
     const { name, email, photo, isAuth, userId } = useGetUserInfo();
     const navigate = useNavigate();
 
     const [description, setDescription] = useState("");
     const [transactionAmount, setTransactionAmount] = useState(0);
     const [transactionType, setTransactionType] = useState("expense");
-    const [searchValue, setSearchvalue] = useState("");
+
+    const initialSearchData = {
+        searchText: "",
+        fromTime: "",
+        toTime: ""
+    }
+
+    const [searchValues, setSearchvalues] = useState(initialSearchData);
     const [filteredTransactions, setFilteredTransactions] = useState([]);
 
     const { balance, income, expenses } = transactionTotals;
@@ -49,24 +56,51 @@ export const ExpenseTracker = () => {
 
     const handleSearch = (e) => {
         e.preventDefault();
-        setSearchvalue(e.target.value);
+        setSearchvalues({ ...searchValues, [e.target.name]: e.target.value });
     }
+    
 
     useEffect(() => {
-        if(searchValue.length> 2){
-            const trimedSearchValue = searchValue.trim();
-            console.log(searchValue);
+        if (searchValues.searchText != "" && searchValues.searchText.length > 2) {
+            const trimedSearchValue = searchValues.searchText.trim();
+            console.log(searchValues);
 
+            if(searchValues.toTime != "" && searchValues.searchText != ""){ 
+                const fromTime = new Date(searchValues.fromTime);
+                const toTime = new Date(searchValues.toTime);
+                const filtered = transactions.filter((transaction) => {
+                    const transactionDate = new Date(transaction.createdAt.toDate());
+                    return transactionDate >= fromTime && transactionDate <= toTime && transaction.description.toLowerCase().includes(trimedSearchValue.toLowerCase());
+                })
+                setFilteredTransactions(filtered);
+            }else{
+                const filtered = transactions.filter((transaction) => {
+                    return transaction.description.toLowerCase().includes(trimedSearchValue.toLowerCase());
+                })
+                setFilteredTransactions(filtered);
+                console.log("hi1", filteredTransactions);
+
+            }
+
+
+
+        }else if ( searchValues.searchText == "" && searchValues.fromTime != "" && searchValues.toTime != "") {
+            const fromTime = new Date(searchValues.fromTime);
+            const toTime = new Date(searchValues.toTime);
             const filtered = transactions.filter((transaction) => {
-                return transaction.description.toLowerCase().includes(trimedSearchValue.toLowerCase());
+                const transactionDate = new Date(transaction.createdAt.toDate());
+                // console.log("hi", transactionDate);
+                return transactionDate >= fromTime && transactionDate <= toTime;
             })
             setFilteredTransactions(filtered);
-
-            
-        }else{
-            setFilteredTransactions(transactions);
+            console.log("hi2", filteredTransactions);
         }
-    }, [searchValue, transactions]);
+         else {
+            setFilteredTransactions(transactions);
+            // console.log("hi3", filteredTransactions);
+        }
+        
+    }, [searchValues, transactions]);
 
 
 
@@ -95,20 +129,20 @@ export const ExpenseTracker = () => {
                     </div>
                     <form className="add-transaction" onSubmit={onSubmit}>
                         <input type="text" placeholder="Description" required
-                            value={description}
+                            value={description} name = "description"
                             onChange={(e) => setDescription(e.target.value)}
                         />
                         <input type="number" placeholder="Amount" required
-                            value={transactionAmount}
+                            value={transactionAmount} name="transactionAmount"
                             onChange={(e) => setTransactionAmount(e.target.value)}
                         />
                         <input type="radio" id="expense" value="expense"
-                            checked={transactionType === "expense"}
+                            checked={transactionType === "expense"} name="transactionType"
                             onChange={(e) => setTransactionType(e.target.value)}
                         />
                         <label htmlFor="expense"> Expense</label>
                         <input type="radio" id="income" value="income"
-                            checked={transactionType === "income"}
+                            checked={transactionType === "income"} name="transactionType"
                             onChange={(e) => setTransactionType(e.target.value)}
                         />
                         <label htmlFor="income"> Income</label>
@@ -129,8 +163,35 @@ export const ExpenseTracker = () => {
             <div className="search-bar">
                 <h3>Search</h3>
                 <form action="">
-                    <input type="text" placeholder="Search" onChange={(e) => handleSearch(e)} />
+                    <input type="text" placeholder="Search" name="searchText" onChange={(e) => handleSearch(e)} />
                 </form>
+                <div className="time-range" style={{marginTop: '20px'}} >
+                    <div className="from" style={{ display: 'inline-block' }} >
+                        <label htmlFor="from-time">From</label><br />
+
+                        <input
+                            type="datetime-local"
+                            id="from-time"
+                            name="fromTime"
+                            onChange={(e) => handleSearch(e)}
+                            // value="2018-06-12T19:30"
+                            // min="2018-06-07T00:00"
+                            // max="2018-06-14T00:00" 
+                            /></div>
+                    <div className="to" style={{ display: 'inline-block', marginLeft: '20px' }}>
+                        <label htmlFor="to-time">To</label><br />
+
+                        <input
+                            type="datetime-local"
+                            id="to-time"
+                            name="toTime"
+                            onChange={(e) => handleSearch(e)}
+                            // value="2018-06-12T19:30"
+                            // min="2018-06-07T00:00"
+                            // max="2018-06-14T00:00" 
+                            /></div>
+
+                </div>
             </div>
             <div className="transactions">
                 <h3>Transactions</h3>
